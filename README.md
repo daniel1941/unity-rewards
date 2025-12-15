@@ -23,17 +23,6 @@ A lightweight, one-page web dashboard to visualize Unity rewards data using Node
    npm install
    ```
 
-2. **Configure Licenses**
-   Ensure `licenses.json` is present in the project root (parent of `dashboard/`). This file maps `licenseId` to human-readable aliases.
-   ```json
-   [
-     {
-       "licenseId": "0x123...",
-       "deviceName": "my-device-alias"
-     }
-   ]
-   ```
-
 ## Running the Dashboard
 
 Start the server:
