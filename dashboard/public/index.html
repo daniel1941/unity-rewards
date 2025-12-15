@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unity Rewards Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Unity Rewards Dashboard</h1>
+            <div id="auth-status" class="status-badge">Checking Auth...</div>
+        </header>
+
+        <!-- Auth Section -->
+        <section id="auth-section" class="card">
+            <h2>Configuration</h2>
+            <form id="token-form">
+                <div class="form-group">
+                    <label for="token-input">Bearer Token</label>
+                    <input type="password" id="token-input" placeholder="Enter Supabase Bearer Token" required>
+                </div>
+                <button type="submit" class="btn">Set Configuration</button>
+            </form>
+        </section>
+
+        <!-- Dashboard Content (Hidden until auth) -->
+        <main id="dashboard-content" style="display: none;">
+            <div class="controls card" style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <button id="refresh-btn" class="btn">Refresh Data</button>
+                    <span id="last-updated" style="margin-left: 10px;"></span>
+                </div>
+                <button id="logout-btn" class="btn" style="background-color: #dc3545;">Logout</button>
+            </div>
+
+            <!-- Summary Cards -->
+            <div class="summary-grid">
+                <div class="card metric">
+                    <h3>Total Amount <span class="tooltip" title="Sum of all reward amounts across all devices and days">ℹ️</span></h3>
+                    <p id="metric-total-amount">-</p>
+                </div>
+                <div class="card metric">
+                    <h3>Total Allocations <span class="tooltip" title="Total count of individual reward records received">ℹ️</span></h3>
+                    <p id="metric-total-count">-</p>
+                </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="charts-grid">
+                <div class="card">
+                    <h3>Daily Total Amount (UTC) <span class="tooltip" title="Sum of rewards for all devices on each UTC day">ℹ️</span></h3>
+                    <canvas id="dailyChart" style="max-height: 300px;"></canvas>
+                </div>
+                <div class="card">
+                    <h3>Average Amount per License <span class="tooltip" title="Average of daily totals for each license (Total Rewards / Days Active)">ℹ️</span></h3>
+                    <canvas id="deviceChart" style="max-height: 300px;"></canvas>
+                </div>
+            </div>
+
+            <!-- Single Device Chart -->
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h3 style="margin: 0;">Rewards Over Time (Single License ID) <span class="tooltip" title="Daily total rewards for the selected device">ℹ️</span></h3>
+                    <select id="device-select" style="padding: 5px; border-radius: 4px; border: 1px solid #ddd;">
+                        <option value="">Select License ID</option>
+                    </select>
+                </div>
+                <canvas id="singleDeviceChart" style="max-height: 300px;"></canvas>
+            </div>
+
+            <!-- Tables -->
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h3 style="margin: 0;">Daily Breakdown <span class="tooltip" title="Detailed list of daily totals per device">ℹ️</span></h3>
+                    <select id="table-device-filter" style="padding: 5px; border-radius: 4px; border: 1px solid #ddd;">
+                        <option value="all">All License IDs</option>
+                    </select>
+                </div>
+                <div class="table-wrapper">
+                    <table id="daily-table">
+                        <thead>
+                            <tr>
+                                <th>Date (UTC)</th>
+                                <th>License ID</th>
+                                <th>Count</th>
+                                <th>Total Amount</th>
+                                <th>Avg Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

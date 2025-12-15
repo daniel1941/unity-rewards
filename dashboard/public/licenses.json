@@ -1,0 +1,35 @@
+[
+    {
+        "licenseId": "0x046e51f040691eb4c79b24b6c4a5c380d72b37797f034bfc65bce006bf717d1c",
+        "deviceName": "phone-01"
+
+    },
+    {
+        "licenseId": "0x03988771fd9ed7debe435f0ec7e2f3393cfb5856f73f9b86a52f2a650d0a9dc1",
+        "deviceName": "phone-02"
+    },
+    {
+        "licenseId": "0x03125c58b591819e8e9199a800e3b7bbbe7e71f33f416657f392f54a06ddcb3b",
+        "deviceName": "phone-00-daniel"
+    },
+    {
+        "licenseId": "0x02fe4c955a9e4c124557b084031e8503b8679ea9271721bb2ecd877c412e7faa",
+        "deviceName": "phone-01-ela"
+    },
+    {
+        "licenseId": "0x03b0f489ea305d0f272e89ab286fd4d82313889878d76ad385d6314945177cd8",
+        "deviceName": "phone-05"
+    },
+    {
+        "licenseId": "0x03cca55169973088b062519a036e36f020f0b9c652c21e8c79db34647132f76f",
+        "deviceName": "phone-06"
+    },
+    {
+        "licenseId": "0x195b10606cb69c123fb3f82e4660c599222a7a5ef9a0b271102230c850e512dd",
+        "deviceName": "101"
+    },
+    {
+        "licenseId": "0x3527b2df6fff1c82fea1b749c2cd46df0c3c7abef7ecfd4704fed05818fc293f",
+        "deviceName": "102"
+    }
+]
