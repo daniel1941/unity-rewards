@@ -6,6 +6,23 @@ const API_KEY = "sb_publishable_yKqi0fu5vV6G4ryUIMJuzw_NCoFEl1c";
 let charts = {};
 let currentData = null;
 let expandedCardContext = null;
+let tableSortState = { key: 'date', direction: 'desc' };
+
+const tableComparators = {
+    date: (a, b) => a.date.localeCompare(b.date),
+    license: (a, b) => a.licenseAlias.localeCompare(b.licenseAlias),
+    count: (a, b) => a.count - b.count,
+    totalAmount: (a, b) => a.totalAmount - b.totalAmount,
+    averageAmount: (a, b) => a.averageAmount - b.averageAmount
+};
+
+const tableDefaultDirections = {
+    date: 'desc',
+    license: 'asc',
+    count: 'desc',
+    totalAmount: 'desc',
+    averageAmount: 'desc'
+};
 
 // DOM Elements
 const authStatus = document.getElementById('auth-status');
@@ -24,6 +41,7 @@ const cardOverlayClose = document.getElementById('card-overlay-close');
 // Init
 document.addEventListener('DOMContentLoaded', () => {
     initializeCardExpansion();
+    initializeTableSorting();
     checkAuth();
 });
 
@@ -106,6 +124,42 @@ function initializeCardExpansion() {
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
             closeCardOverlay();
+        }
+    });
+}
+
+function initializeTableSorting() {
+    const sortButtons = document.querySelectorAll('.sort-button[data-sort-key]');
+    sortButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const key = button.dataset.sortKey;
+            if (!key) return;
+
+            if (tableSortState.key === key) {
+                tableSortState.direction = tableSortState.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                tableSortState.key = key;
+                tableSortState.direction = tableDefaultDirections[key] || 'asc';
+            }
+
+            if (currentData?.summaries) {
+                renderTable(currentData.summaries);
+            } else {
+                updateSortIndicators();
+            }
+        });
+    });
+
+    updateSortIndicators();
+}
+
+function updateSortIndicators() {
+    const sortButtons = document.querySelectorAll('.sort-button[data-sort-key]');
+    sortButtons.forEach(button => {
+        const key = button.dataset.sortKey;
+        button.classList.remove('sort-asc', 'sort-desc', 'is-active');
+        if (key === tableSortState.key) {
+            button.classList.add(`sort-${tableSortState.direction}`, 'is-active');
         }
     });
 }
@@ -584,14 +638,28 @@ function renderDistributionChart(perDeviceData) {
 
 function renderTable(summaries) {
     const tbody = document.querySelector('#daily-table tbody');
+    if (!tbody) return;
     tbody.innerHTML = '';
+
+    if (!Array.isArray(summaries) || summaries.length === 0) {
+        updateSortIndicators();
+        return;
+    }
 
     const filterValue = tableDeviceFilter.value;
     const filteredSummaries = filterValue === 'all' 
         ? summaries 
         : summaries.filter(s => s.licenseAlias === filterValue);
 
-    filteredSummaries.forEach(row => {
+    const comparator = tableComparators[tableSortState.key];
+    const sortedSummaries = comparator
+        ? [...filteredSummaries].sort((a, b) => {
+            const result = comparator(a, b);
+            return tableSortState.direction === 'asc' ? result : -result;
+        })
+        : filteredSummaries;
+
+    sortedSummaries.forEach(row => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${row.date}</td>
@@ -602,4 +670,6 @@ function renderTable(summaries) {
         `;
         tbody.appendChild(tr);
     });
+
+    updateSortIndicators();
 }

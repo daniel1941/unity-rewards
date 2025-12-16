@@ -215,6 +215,44 @@ th, td {
 th {
     background-color: #f8f9fa;
     font-weight: 600;
+    position: relative;
+}
+
+.sort-button {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: none;
+    border: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    padding: 0;
+}
+
+.sort-button::after {
+    content: '';
+    border-style: solid;
+    border-width: 0 4px 6px 4px;
+    border-color: transparent transparent var(--text-color) transparent;
+    opacity: 0.35;
+    transition: transform 0.1s ease;
+}
+
+.sort-button.sort-asc::after {
+    border-width: 6px 4px 0 4px;
+    border-color: var(--text-color) transparent transparent transparent;
+}
+
+.sort-button.sort-desc::after {
+    border-width: 0 4px 6px 4px;
+    border-color: transparent transparent var(--text-color) transparent;
+}
+
+.sort-button.is-active {
+    color: var(--accent-color);
 }
 
 .tooltip {
