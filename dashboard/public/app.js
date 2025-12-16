@@ -5,6 +5,7 @@ const API_KEY = "sb_publishable_yKqi0fu5vV6G4ryUIMJuzw_NCoFEl1c";
 // State
 let charts = {};
 let currentData = null;
+let expandedCardContext = null;
 
 // DOM Elements
 const authStatus = document.getElementById('auth-status');
@@ -16,9 +17,13 @@ const refreshBtn = document.getElementById('refresh-btn');
 const logoutBtn = document.getElementById('logout-btn');
 const deviceSelect = document.getElementById('device-select');
 const tableDeviceFilter = document.getElementById('table-device-filter');
+const cardOverlay = document.getElementById('card-overlay');
+const cardOverlayBody = document.getElementById('card-overlay-body');
+const cardOverlayClose = document.getElementById('card-overlay-close');
 
 // Init
 document.addEventListener('DOMContentLoaded', () => {
+    initializeCardExpansion();
     checkAuth();
 });
 
@@ -73,6 +78,91 @@ function logout() {
         currentData = null;
         checkAuth();
     }
+}
+
+function initializeCardExpansion() {
+    const expandableCards = document.querySelectorAll('[data-expandable="true"]');
+    expandableCards.forEach(card => {
+        const expandBtn = card.querySelector('.card-expand-btn');
+        if (!expandBtn) return;
+        expandBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            openCardOverlay(card, expandBtn);
+        });
+    });
+
+    if (cardOverlayClose) {
+        cardOverlayClose.addEventListener('click', closeCardOverlay);
+    }
+
+    if (cardOverlay) {
+        cardOverlay.addEventListener('click', (event) => {
+            if (event.target === cardOverlay) {
+                closeCardOverlay();
+            }
+        });
+    }
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            closeCardOverlay();
+        }
+    });
+}
+
+function openCardOverlay(card, trigger) {
+    if (!cardOverlay || !cardOverlayBody) return;
+
+    if (expandedCardContext?.card === card) {
+        closeCardOverlay();
+        return;
+    }
+
+    closeCardOverlay();
+
+    expandedCardContext = {
+        card,
+        parent: card.parentNode,
+        nextSibling: card.nextElementSibling,
+        trigger
+    };
+
+    card.classList.add('is-expanded');
+    cardOverlayBody.appendChild(card);
+    cardOverlay.classList.add('visible');
+    cardOverlay.setAttribute('aria-hidden', 'false');
+
+    setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+    }, 50);
+}
+
+function closeCardOverlay() {
+    if (cardOverlay) {
+        cardOverlay.classList.remove('visible');
+        cardOverlay.setAttribute('aria-hidden', 'true');
+    }
+
+    if (!expandedCardContext) return;
+
+    const { card, parent, nextSibling, trigger } = expandedCardContext;
+    card.classList.remove('is-expanded');
+
+    if (parent) {
+        if (nextSibling && nextSibling.parentNode === parent) {
+            parent.insertBefore(card, nextSibling);
+        } else {
+            parent.appendChild(card);
+        }
+    }
+
+    expandedCardContext = null;
+
+    if (trigger) {
+        trigger.focus();
+    }
+
+    window.dispatchEvent(new Event('resize'));
 }
 
 async function loadData() {
@@ -248,6 +338,7 @@ function renderDashboard(data) {
     // Charts
     renderDailyChart(data.averages.perDay);
     renderDeviceChart(data.averages.perDevice);
+    renderDistributionChart(data.averages.perDevice);
 
     // Populate Dropdown
     const currentSelection = deviceSelect.value;
@@ -392,6 +483,104 @@ function renderDeviceChart(perDeviceData) {
         }
     });
 }
+
+function renderDistributionChart(perDeviceData) {
+    const canvas = document.getElementById('distributionChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    if (charts.distribution) charts.distribution.destroy();
+    if (!perDeviceData || perDeviceData.length === 0) return;
+
+    const totals = perDeviceData
+        .map(device => (typeof device.totalAmount === 'number' ? device.totalAmount : Number(device.totalAmount) || 0))
+        .filter(value => !Number.isNaN(value));
+
+    if (totals.length === 0) return;
+
+    const mean = totals.reduce((sum, value) => sum + value, 0) / totals.length;
+    const variance = totals.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / totals.length;
+    const stdDev = variance > 0 ? Math.sqrt(variance) : 1;
+
+    const min = Math.min(...totals);
+    const max = Math.max(...totals);
+    const spanStart = Math.min(mean - (3 * stdDev), min);
+    const spanEnd = Math.max(mean + (3 * stdDev), max);
+    const pointCount = 80;
+    const range = spanEnd - spanStart;
+    const step = range === 0 ? 1 : range / Math.max(pointCount - 1, 1);
+
+    const sqrtTwoPi = Math.sqrt(2 * Math.PI);
+    const totalSum = totals.reduce((sum, value) => sum + value, 0);
+
+    const curvePoints = [];
+    for (let idx = 0; idx < pointCount; idx++) {
+        const x = spanStart + (step * idx);
+        const z = (x - mean) / stdDev;
+        const pdf = Math.exp(-0.5 * z * z) / (stdDev * sqrtTwoPi);
+        curvePoints.push({ x: Number.isFinite(x) ? x : 0, y: pdf * totalSum });
+    }
+
+    const scatterPoints = totals.map(value => ({ x: value, y: 0 }));
+
+    charts.distribution = new Chart(ctx, {
+        type: 'line',
+        data: {
+            datasets: [
+                {
+                    label: 'Normal Distribution Curve',
+                    data: curvePoints,
+                    parsing: false,
+                    borderColor: '#4a90e2',
+                    backgroundColor: 'rgba(74, 144, 226, 0.1)',
+                    tension: 0.25,
+                    fill: true,
+                    pointRadius: 0
+                },
+                {
+                    type: 'scatter',
+                    label: 'Device Totals',
+                    data: scatterPoints,
+                    parsing: false,
+                    borderColor: '#ff9f43',
+                    backgroundColor: '#ff9f43',
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    type: 'linear',
+                    title: { display: true, text: 'Total Rewards per License' }
+                },
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'Density (scaled)' }
+                }
+            },
+            plugins: {
+                legend: { position: 'bottom' },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => {
+                            const xVal = context.parsed.x;
+                            const yVal = context.parsed.y;
+                            if (context.dataset.type === 'scatter') {
+                                return `Device Total: ${xVal.toFixed(2)}`;
+                            }
+                            return `Curve: ${yVal.toFixed(2)} at ${xVal.toFixed(2)}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
 
 function renderTable(summaries) {
     const tbody = document.querySelector('#daily-table tbody');
