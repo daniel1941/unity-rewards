@@ -2,6 +2,9 @@
 
 A lightweight, one-page web dashboard to visualize Unity rewards data using Node.js and Chart.js.
 
+## Deployed at
+[https://daniel1941.github.io/unity-rewards/dashboard/public](https://daniel1941.github.io/unity-rewards/dashboard/public/)
+
 ## Features
 - **Live Data**: Fetches real-time allocation data from Supabase.
 - **Visualizations**:
