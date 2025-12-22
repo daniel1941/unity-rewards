@@ -155,6 +155,17 @@ header {
     margin-bottom: 15px;
 }
 
+.form-hint {
+    margin: 6px 0 0;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.text-muted {
+    color: #666;
+    font-size: 0.9rem;
+}
+
 input[type="password"] {
     width: 100%;
     padding: 8px;

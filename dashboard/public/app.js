@@ -7,6 +7,7 @@ let charts = {};
 let currentData = null;
 let expandedCardContext = null;
 let tableSortState = { key: 'date', direction: 'desc' };
+let licenseAliasMap = new Map();
 
 const tableComparators = {
     date: (a, b) => a.date.localeCompare(b.date),
@@ -30,6 +31,8 @@ const authSection = document.getElementById('auth-section');
 const dashboardContent = document.getElementById('dashboard-content');
 const tokenForm = document.getElementById('token-form');
 const tokenInput = document.getElementById('token-input');
+const licenseFileInput = document.getElementById('license-file-input');
+const licenseFileStatus = document.getElementById('license-file-status');
 const refreshBtn = document.getElementById('refresh-btn');
 const logoutBtn = document.getElementById('logout-btn');
 const deviceSelect = document.getElementById('device-select');
@@ -58,10 +61,28 @@ tableDeviceFilter.addEventListener('change', () => {
     }
 });
 
+if (licenseFileInput) {
+    licenseFileInput.addEventListener('change', () => {
+        if (!licenseFileInput.files || licenseFileInput.files.length === 0) {
+            updateLicenseFileStatus('No file selected; license IDs will be shown.');
+            return;
+        }
+        const file = licenseFileInput.files[0];
+        updateLicenseFileStatus(`Selected ${file.name}. File will be loaded when you set the token.`);
+    });
+}
+
 tokenForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const token = tokenInput.value;
+    const token = tokenInput.value.trim();
     if (!token) return;
+
+    try {
+        await loadLicenseAliasesFromInput();
+    } catch (err) {
+        alert('Invalid license alias file: ' + err.message);
+        return;
+    }
 
     // Save to Session Storage (cleared when tab closes)
     sessionStorage.setItem('unity_rewards_token', token);
@@ -73,6 +94,62 @@ refreshBtn.addEventListener('click', loadData);
 logoutBtn.addEventListener('click', logout);
 
 // Functions
+function updateLicenseFileStatus(message) {
+    if (licenseFileStatus) {
+        licenseFileStatus.textContent = message;
+    }
+}
+
+async function loadLicenseAliasesFromInput() {
+    if (!licenseFileInput || !licenseFileInput.files || licenseFileInput.files.length === 0) {
+        licenseAliasMap = new Map();
+        updateLicenseFileStatus('No alias file selected; showing license IDs as ...XXXX.');
+        return;
+    }
+
+    const file = licenseFileInput.files[0];
+    const text = await file.text();
+    let parsed;
+    try {
+        parsed = JSON.parse(text);
+    } catch (err) {
+        throw new Error('File is not valid JSON.');
+    }
+
+    if (!Array.isArray(parsed)) {
+        throw new Error('JSON must be an array.');
+    }
+
+    const map = new Map();
+    parsed.forEach((entry, idx) => {
+        if (!entry || typeof entry !== 'object') return;
+        const licenseId = typeof entry.licenseId === 'string' ? entry.licenseId.trim() : null;
+        const alias = typeof entry.alias === 'string' && entry.alias.trim()
+            ? entry.alias.trim()
+            : (typeof entry.deviceName === 'string' && entry.deviceName.trim() ? entry.deviceName.trim() : null);
+
+        if (licenseId && alias) {
+            map.set(licenseId, alias);
+        }
+    });
+
+    licenseAliasMap = map;
+
+    if (map.size === 0) {
+        updateLicenseFileStatus(`${file.name}: no valid entries found; showing license IDs as ...XXXX.`);
+    } else {
+        updateLicenseFileStatus(`Loaded ${map.size} aliases from ${file.name}.`);
+    }
+}
+
+function resolveLicenseAlias(licenseId) {
+    if (licenseAliasMap.has(licenseId)) {
+        return licenseAliasMap.get(licenseId);
+    }
+    if (!licenseId) return 'Unknown';
+    return licenseId.length > 4 ? `...${licenseId.slice(-4)}` : licenseId;
+}
+
 function checkAuth() {
     const token = sessionStorage.getItem('unity_rewards_token');
     
@@ -94,6 +171,11 @@ function logout() {
     if (confirm('Are you sure you want to logout? This will clear your session token.')) {
         sessionStorage.clear();
         currentData = null;
+        licenseAliasMap = new Map();
+        if (licenseFileInput) {
+            licenseFileInput.value = '';
+        }
+        updateLicenseFileStatus('No file selected; showing license IDs as ...XXXX.');
         checkAuth();
     }
 }
@@ -310,10 +392,7 @@ function processAllocations(allocations) {
     // 2. Transform to Summary Objects
     const summaries = Object.values(grouped).map(g => {
         const totalAmount = g.sumMicros / 1_000_000;
-        // Use shortened licenseId as alias
-        const licenseAlias = g.licenseId && g.licenseId.length > 4 
-            ? `...${g.licenseId.substring(g.licenseId.length - 4)}` 
-            : (g.licenseId || 'Unknown');
+        const licenseAlias = resolveLicenseAlias(g.licenseId);
         
         return {
             date: g.date,

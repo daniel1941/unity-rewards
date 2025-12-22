@@ -19,6 +19,12 @@
             <h2>Configuration</h2>
             <form id="token-form">
                 <div class="form-group">
+                    <label for="license-file-input">License aliases JSON (optional)</label>
+                    <input type="file" id="license-file-input" accept="application/json">
+                    <p class="form-hint">Upload an array of entries like { "licenseId": "...", "alias": "..." } or { "licenseId": "...", "deviceName": "..." }. File is only kept in-memory for this session.</p>
+                    <div id="license-file-status" class="text-muted">No file selected; showing license IDs as ...XXXX.</div>
+                </div>
+                <div class="form-group">
                     <label for="token-input">Bearer Token</label>
                     <input type="password" id="token-input" placeholder="Enter Supabase Bearer Token" required>
                 </div>
