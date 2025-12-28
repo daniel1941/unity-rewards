@@ -40,15 +40,6 @@ Access the dashboard at: `http://localhost:3000`
 2. Enter your Supabase Bearer Token when prompted.
 3. View charts and filter data by License Alias.
 
-## Deployment
-
-### GitHub Pages
-This project is configured for automatic deployment to GitHub Pages via GitHub Actions.
-1. Push changes to `main`.
-2. Go to Repository Settings > Pages.
-3. Select **GitHub Actions** as the source.
-4. The workflow will deploy the `dashboard/public` folder.
-
 ## Project Structure
 - `dashboard/public/`: Static web application (HTML/JS/CSS).
 - `dashboard/src/`: (Legacy) Backend logic, now ported to client-side for static deployment.
