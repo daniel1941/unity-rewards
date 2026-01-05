@@ -66,6 +66,17 @@
                     </div>
                     <p id="metric-total-count">-</p>
                 </div>
+                <div class="card metric" data-expandable="true">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <h3>Daily Average by Device <span class="tooltip" title="Average rewards per allocation per day per device">ℹ️</span></h3>
+                            <button type="button" class="card-expand-btn" aria-label="Expand card" title="Expand card">
+                                <span aria-hidden="true">⤢</span>
+                            </button>
+                        </div>
+                    </div>
+                    <p id="metric-daily-avg-by-device">-</p>
+                </div>
             </div>
 
             <!-- Charts -->
@@ -102,6 +113,17 @@
                         </div>
                     </div>
                     <canvas id="distributionChart" style="max-height: 300px;"></canvas>
+                </div>
+                <div class="card" data-expandable="true">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <h3>Daily Average by Device Evolution <span class="tooltip" title="Average rewards per allocation for each device per day">ℹ️</span></h3>
+                            <button type="button" class="card-expand-btn" aria-label="Expand card" title="Expand card">
+                                <span aria-hidden="true">⤢</span>
+                            </button>
+                        </div>
+                    </div>
+                    <canvas id="dailyAvgByDeviceChart" style="max-height: 300px;"></canvas>
                 </div>
             </div>
 

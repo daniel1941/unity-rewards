@@ -434,10 +434,22 @@ function processAllocations(allocations) {
     const averagePerDay = Object.entries(dayGroups).map(([date, data]) => ({
         date: date,
         count: data.recordCount,
+        deviceCount: data.count,
         totalAmount: data.total,
         averageAmount: data.count > 0 ? data.total / data.count : 0,
         averagePerReward: data.recordCount > 0 ? data.total / data.recordCount : 0
     })).sort((a, b) => a.date.localeCompare(b.date));
+
+    // 6. Daily Average by Device (total rewards / total allocations per day per device)
+    let totalDailyDeviceAverages = 0;
+    let dailyDeviceCount = 0;
+    summaries.forEach(s => {
+        if (s.count > 0) {
+            totalDailyDeviceAverages += s.averageAmount;
+            dailyDeviceCount++;
+        }
+    });
+    const dailyAverageByDevice = dailyDeviceCount > 0 ? totalDailyDeviceAverages / dailyDeviceCount : 0;
 
     console.log('Processed Data:', {
         summariesCount: summaries.length,
@@ -455,7 +467,8 @@ function processAllocations(allocations) {
         },
         averages: {
             perDevice: averagePerDevice.sort((a, b) => b.averageAmount - a.averageAmount),
-            perDay: averagePerDay
+            perDay: averagePerDay,
+            dailyByDevice: dailyAverageByDevice
         },
         meta: {
             generatedAtUtc: new Date().toISOString()
@@ -467,11 +480,13 @@ function renderDashboard(data) {
     // Metrics
     document.getElementById('metric-total-amount').textContent = data.totals.totalAmount.toFixed(2);
     document.getElementById('metric-total-count').textContent = data.totals.count;
+    document.getElementById('metric-daily-avg-by-device').textContent = data.averages.dailyByDevice.toFixed(2);
 
     // Charts
     renderDailyChart(data.averages.perDay);
     renderDeviceChart(data.averages.perDevice);
     renderDistributionChart(data.averages.perDevice);
+    renderDailyAvgByDeviceChart(data.averages.perDay);
 
     // Populate Dropdown
     const currentSelection = deviceSelect.value;
@@ -714,6 +729,57 @@ function renderDistributionChart(perDeviceData) {
     });
 }
 
+
+function renderDailyAvgByDeviceChart(perDayData) {
+    const canvas = document.getElementById('dailyAvgByDeviceChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    
+    if (charts.dailyAvgByDevice) charts.dailyAvgByDevice.destroy();
+
+    // Use bar chart if only one data point to ensure visibility
+    const chartType = perDayData.length === 1 ? 'bar' : 'line';
+    const bgColor = perDayData.length === 1 ? '#e76f51' : 'rgba(231, 111, 81, 0.1)';
+
+    charts.dailyAvgByDevice = new Chart(ctx, {
+        type: chartType,
+        data: {
+            labels: perDayData.map(d => d.date),
+            datasets: [{
+                label: 'Average per Allocation',
+                data: perDayData.map(d => d.averagePerReward),
+                borderColor: '#e76f51',
+                backgroundColor: bgColor,
+                tension: 0.1,
+                fill: perDayData.length > 1,
+                pointRadius: 6,
+                pointHoverRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: true }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        afterLabel: (context) => {
+                            const dataIndex = context.dataIndex;
+                            const dayData = perDayData[dataIndex];
+                            if (!dayData) return '';
+                            return [
+                                `Devices: ${dayData.deviceCount}`,
+                                `Total Rewards: ${dayData.totalAmount.toFixed(2)}`
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
 
 function renderTable(summaries) {
     const tbody = document.querySelector('#daily-table tbody');
