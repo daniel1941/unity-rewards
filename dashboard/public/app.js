@@ -8,6 +8,9 @@ let currentData = null;
 let expandedCardContext = null;
 let tableSortState = { key: 'date', direction: 'desc' };
 let licenseAliasMap = new Map();
+let licenseGroupMap = new Map(); // Map of licenseId to group
+let availableGroups = []; // Array of unique groups from license file
+let dailyAvgGroupFilter = 'all'; // Track selected group filter
 
 const tableComparators = {
     date: (a, b) => a.date.localeCompare(b.date),
@@ -36,6 +39,7 @@ const licenseFileStatus = document.getElementById('license-file-status');
 const refreshBtn = document.getElementById('refresh-btn');
 const logoutBtn = document.getElementById('logout-btn');
 const deviceSelect = document.getElementById('device-select');
+const dailyAvgGroupFilterSelect = document.getElementById('dailyAvgGroupFilter');
 const tableDeviceFilter = document.getElementById('table-device-filter');
 const cardOverlay = document.getElementById('card-overlay');
 const cardOverlayBody = document.getElementById('card-overlay-body');
@@ -52,6 +56,13 @@ document.addEventListener('DOMContentLoaded', () => {
 deviceSelect.addEventListener('change', () => {
     if (currentData) {
         renderSingleDeviceChart(deviceSelect.value, currentData.summaries);
+    }
+});
+
+dailyAvgGroupFilterSelect.addEventListener('change', () => {
+    dailyAvgGroupFilter = dailyAvgGroupFilterSelect.value;
+    if (currentData) {
+        renderDailyAvgByDeviceChartFiltered(currentData.summaries);
     }
 });
 
@@ -103,7 +114,10 @@ function updateLicenseFileStatus(message) {
 async function loadLicenseAliasesFromInput() {
     if (!licenseFileInput || !licenseFileInput.files || licenseFileInput.files.length === 0) {
         licenseAliasMap = new Map();
+        licenseGroupMap = new Map();
+        availableGroups = [];
         updateLicenseFileStatus('No alias file selected; showing license IDs as ...XXXX.');
+        populateGroupFilterDropdown();
         return;
     }
 
@@ -120,25 +134,36 @@ async function loadLicenseAliasesFromInput() {
         throw new Error('JSON must be an array.');
     }
 
-    const map = new Map();
+    const aliasMap = new Map();
+    const groupMap = new Map();
+    const groupsSet = new Set();
+    
     parsed.forEach((entry, idx) => {
         if (!entry || typeof entry !== 'object') return;
         const licenseId = typeof entry.licenseId === 'string' ? entry.licenseId.trim() : null;
         const alias = typeof entry.alias === 'string' && entry.alias.trim()
             ? entry.alias.trim()
             : (typeof entry.deviceName === 'string' && entry.deviceName.trim() ? entry.deviceName.trim() : null);
+        const group = typeof entry.group === 'string' && entry.group.trim() ? entry.group.trim() : null;
 
         if (licenseId && alias) {
-            map.set(licenseId, alias);
+            aliasMap.set(licenseId, alias);
+        }
+        if (licenseId && group) {
+            groupMap.set(licenseId, group);
+            groupsSet.add(group);
         }
     });
 
-    licenseAliasMap = map;
+    licenseAliasMap = aliasMap;
+    licenseGroupMap = groupMap;
+    availableGroups = Array.from(groupsSet).sort();
+    populateGroupFilterDropdown();
 
-    if (map.size === 0) {
+    if (aliasMap.size === 0) {
         updateLicenseFileStatus(`${file.name}: no valid entries found; showing license IDs as ...XXXX.`);
     } else {
-        updateLicenseFileStatus(`Loaded ${map.size} aliases from ${file.name}.`);
+        updateLicenseFileStatus(`Loaded ${aliasMap.size} aliases and ${groupMap.size} groups from ${file.name}.`);
     }
 }
 
@@ -148,6 +173,29 @@ function resolveLicenseAlias(licenseId) {
     }
     if (!licenseId) return 'Unknown';
     return licenseId.length > 4 ? `...${licenseId.slice(-4)}` : licenseId;
+}
+
+function populateGroupFilterDropdown() {
+    if (!dailyAvgGroupFilterSelect) return;
+    
+    const currentSelection = dailyAvgGroupFilterSelect.value;
+    dailyAvgGroupFilterSelect.innerHTML = '<option value="all">All Devices</option>';
+    
+    // Add options for each available group
+    availableGroups.forEach(group => {
+        const option = document.createElement('option');
+        option.value = group;
+        option.textContent = group;
+        dailyAvgGroupFilterSelect.appendChild(option);
+    });
+    
+    // Restore previous selection if it's still valid, otherwise default to 'all'
+    if (availableGroups.includes(currentSelection)) {
+        dailyAvgGroupFilterSelect.value = currentSelection;
+    } else {
+        dailyAvgGroupFilterSelect.value = 'all';
+        dailyAvgGroupFilter = 'all';
+    }
 }
 
 function checkAuth() {
@@ -486,7 +534,7 @@ function renderDashboard(data) {
     renderDailyChart(data.averages.perDay);
     renderDeviceChart(data.averages.perDevice);
     renderDistributionChart(data.averages.perDevice);
-    renderDailyAvgByDeviceChart(data.averages.perDay);
+    renderDailyAvgByDeviceChartFiltered(data.summaries);
 
     // Populate Dropdown
     const currentSelection = deviceSelect.value;
@@ -779,6 +827,38 @@ function renderDailyAvgByDeviceChart(perDayData) {
             }
         }
     });
+}
+
+function renderDailyAvgByDeviceChartFiltered(summaries) {
+    // Filter summaries based on selected group
+    let filteredSummaries = summaries;
+    
+    if (dailyAvgGroupFilter !== 'all') {
+        filteredSummaries = summaries.filter(s => 
+            licenseGroupMap.get(s.licenseId) === dailyAvgGroupFilter
+        );
+    }
+
+    // Recalculate per-day data based on filtered summaries
+    const dayGroups = {};
+    filteredSummaries.forEach(s => {
+        if (!dayGroups[s.date]) dayGroups[s.date] = { total: 0, count: 0, recordCount: 0 };
+        dayGroups[s.date].total += s.totalAmount;
+        dayGroups[s.date].count += 1;
+        dayGroups[s.date].recordCount += s.count;
+    });
+
+    const perDayData = Object.entries(dayGroups).map(([date, data]) => ({
+        date: date,
+        count: data.recordCount,
+        deviceCount: data.count,
+        totalAmount: data.total,
+        averageAmount: data.count > 0 ? data.total / data.count : 0,
+        averagePerReward: data.recordCount > 0 ? data.total / data.recordCount : 0
+    })).sort((a, b) => a.date.localeCompare(b.date));
+
+    // Call the original render function with filtered data
+    renderDailyAvgByDeviceChart(perDayData);
 }
 
 function renderTable(summaries) {

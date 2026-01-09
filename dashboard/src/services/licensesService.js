@@ -35,5 +35,19 @@ export const licensesService = {
         return licenseId && licenseId.length > 4 
             ? `...${licenseId.substring(licenseId.length - 4)}` 
             : 'Unknown';
+    },
+
+    async getGroupForLicense(licenseId) {
+        if (!licensesCache) {
+            await this.loadLicenses();
+        }
+        
+        const match = licensesCache.find(l => l.licenseId === licenseId);
+        if (match && match.group) {
+            return match.group;
+        }
+        
+        // Return null if no group attribute is present
+        return null;
     }
 };
